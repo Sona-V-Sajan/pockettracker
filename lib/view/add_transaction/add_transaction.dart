@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:pockettracker/controller/db/category/category_db.dart';
+import 'package:pockettracker/controller/db/transaction/transation_db.dart';
 import 'package:pockettracker/model/category/category_model.dart';
+import 'package:pockettracker/model/transaction/transaction_model.dart';
 
 class Add_transaction extends StatefulWidget {
   static const routeName ="add transaction";
@@ -12,14 +14,16 @@ class Add_transaction extends StatefulWidget {
 
 class _Add_transactionState extends State<Add_transaction> {
 
-  DateTime? selectedDate;
-  CategoryType? selectedCategoryType;
-  CategoryModel? selectedCategoryModel;
+  DateTime? _selectedDate;
+  CategoryType? _selectedCategoryType;
+  CategoryModel? _selectedCategoryModel;
   String? CategoryId;
+  final PurposeTextEditingController = TextEditingController();
+  final AmountTextEditingController = TextEditingController();
 
   @override
   void initState() {
-    selectedCategoryType = CategoryType.income;
+    _selectedCategoryType = CategoryType.income;
 
   }
   @override
@@ -33,6 +37,7 @@ class _Add_transactionState extends State<Add_transaction> {
             Padding(
               padding: const EdgeInsets.all(20.0),
               child: TextFormField(
+                controller:  PurposeTextEditingController,
                 keyboardType: TextInputType.text,
                 decoration: InputDecoration(
                   hintText: "Purpose",
@@ -44,6 +49,7 @@ class _Add_transactionState extends State<Add_transaction> {
             Padding(
               padding: const EdgeInsets.all(20.0),
               child: TextFormField(
+                controller: AmountTextEditingController,
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(
                     hintText: "Amount",
@@ -56,26 +62,26 @@ class _Add_transactionState extends State<Add_transaction> {
               padding: const EdgeInsets.all(10.0),
               child: TextButton.icon(
                   onPressed: () async{
-                 final selectedDateTemp=await showDatePicker(
+                 final _selectedDateTemp=await showDatePicker(
                     context: context,
                     initialDate: DateTime.now(),
                     firstDate: DateTime.now().subtract(Duration(days: 30)),
                     lastDate: DateTime.now(),
                  );
-                 if(selectedDateTemp == null){
+                 if(_selectedDateTemp == null){
                    return;
                  }
                  else{
-                   print(selectedDateTemp.toString());
+                   print(_selectedDateTemp.toString());
                    setState(() {
-                     selectedDate = selectedDateTemp;
+                     _selectedDate = _selectedDateTemp;
                    });
 
                  }
               },
                 icon: Icon
                 (Icons.calendar_today),
-                  label: Text(selectedDate == null?"Select Date":selectedDate.toString()),
+                  label: Text(_selectedDate == null?"Select Date":_selectedDate.toString()),
               ),
             ),
 
@@ -86,10 +92,10 @@ class _Add_transactionState extends State<Add_transaction> {
                  children: [
                    Radio(
                        value:CategoryType.income,
-                       groupValue: selectedCategoryType,
+                       groupValue: _selectedCategoryType,
                        onChanged: (newvalue){
                          setState(() {
-                           selectedCategoryType = CategoryType.income;
+                           _selectedCategoryType = CategoryType.income;
                            CategoryId = null;
                          });
                        }
@@ -101,10 +107,10 @@ class _Add_transactionState extends State<Add_transaction> {
                  children: [
                    Radio(
                        value:CategoryType.expense,
-                       groupValue: selectedCategoryType,
+                       groupValue: _selectedCategoryType,
                        onChanged: (newvalue){
                          setState(() {
-                           selectedCategoryType = CategoryType.expense;
+                           _selectedCategoryType = CategoryType.expense;
                            CategoryId =null;
                          });
                        }
@@ -120,13 +126,17 @@ class _Add_transactionState extends State<Add_transaction> {
               child: DropdownButton(
                 value: CategoryId,
                 hint:Text("Select Category"),
-                  items:(selectedCategoryType == CategoryType.income
+                  items:(_selectedCategoryType == CategoryType.income
                       ? CategoryDB().incomeCategoryListListener:
                      CategoryDB().expenseCategoryListListener)
                       .value.map((e){
                     return DropdownMenuItem(
                       value: e.id,
-                        child: Text(e.name));
+                        child: Text(e.name),
+                        onTap: (){
+                          _selectedCategoryModel = e;
+                        }
+                    );
 
                   } ).toList(),
                   onChanged: (seletedValue){
@@ -147,16 +157,50 @@ class _Add_transactionState extends State<Add_transaction> {
 
 
                 ),
-                  onPressed: (){},
+                  onPressed: (){
+                  addTransaction();
+                  },
                   child: Text("Submit",style:TextStyle(color: Colors.white),)),
             )
-
-
-
-
           ],
         ),
       ),
     );
   }
+
+ Future  <void> addTransaction() async{
+    final _purposeText =PurposeTextEditingController.text;
+    final _amountText =AmountTextEditingController.text;
+    if(_purposeText.isEmpty){
+      return;
+    }
+    if(_amountText.isEmpty){
+      return;
+    }
+    if(CategoryId == null){
+      return;
+    }
+    if(_selectedDate == null){
+      return;
+    }
+    if(_selectedCategoryModel ==null){
+      return;
+    }
+    final _parseAmount = double.tryParse(_amountText);
+    if(_parseAmount == null){
+      return;
+    }
+   final _model= TransactionModel(
+        purpose: _purposeText,
+        amount: _parseAmount,
+        date: _selectedDate!,
+        type: _selectedCategoryType!,
+        category: _selectedCategoryModel!,
+   );
+    await TransactionDB.instance.addTransaction(_model);
+    Navigator.of(context).pop();
+    TransactionDB.instance.refersh();
+
+ }
 }
+

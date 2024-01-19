@@ -12,8 +12,8 @@ abstract class CategoryDbFunctions{
 }
 class CategoryDB implements CategoryDbFunctions {
   // using singleton
-  CategoryDB.obj();
-  static CategoryDB instance = CategoryDB.obj();
+  CategoryDB._obj();
+  static CategoryDB instance = CategoryDB._obj();
   factory CategoryDB(){
     return instance;
   }
